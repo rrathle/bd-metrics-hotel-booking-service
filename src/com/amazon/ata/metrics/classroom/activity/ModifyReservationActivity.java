@@ -2,7 +2,9 @@ package com.amazon.ata.metrics.classroom.activity;
 
 import com.amazon.ata.metrics.classroom.dao.ReservationDao;
 import com.amazon.ata.metrics.classroom.dao.models.UpdatedReservation;
+import com.amazon.ata.metrics.classroom.metrics.MetricsConstants;
 import com.amazon.ata.metrics.classroom.metrics.MetricsPublisher;
+import com.amazonaws.services.cloudwatch.model.StandardUnit;
 
 import java.time.ZonedDateTime;
 import javax.inject.Inject;
@@ -27,6 +29,8 @@ public class ModifyReservationActivity {
 
     /**
      * Modifies the given reservation.
+     *           and update the modifedREservationCountMetric
+     *           and update the reservationRevenue metric
      * @param reservationId Id to modify reservations for
      * @param checkInDate modified check in date
      * @param numberOfNights modified number of nights
@@ -37,6 +41,23 @@ public class ModifyReservationActivity {
 
         UpdatedReservation updatedReservation = reservationDao.modifyReservation(reservationId, checkInDate,
             numberOfNights);
+
+        //update the bookedReservation metric count
+        metricsPublisher.addMetric(MetricsConstants.MODIFY_COUNT, 1, StandardUnit.Count);
+
+        //Update the ReservationRevenue metric with the total cost of the Reservation
+        //The Updatedreservation is stores in the response upon return from the ReservationDao
+        //  and contains the original reservation and the modified reservation
+        // of we subtract the totalCost from the original reservation from the modified reservation
+        //  we willl have the difference in revenue fro the metric
+
+        // calculate the revenue differnce due to the mofifired
+        double revenueDifference = updatedReservation.getModifiedReservation().getTotalCost().
+                            subtract(updatedReservation.getOriginalReservation().getTotalCost()).doubleValue();
+
+        //Update the resrvationRevnue metric
+        metricsPublisher.addMetric(MetricsConstants.RESERVATION_REVENUE, revenueDifference, StandardUnit.None);
+
         return updatedReservation;
     }
 }
